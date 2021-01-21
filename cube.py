@@ -195,6 +195,13 @@ class Cube():
         self.r()
         self.u()
 
+    def score(self):
+        out = 0
+        for i in range(6):
+            middle = self.cube[i][1][1]
+            out += ((self.cube[i] == middle).sum() - 1)
+        return 48 - out
+
 
 c = Cube()
 # print(c.cube)
@@ -213,10 +220,3 @@ c = Cube()
 # c.b()
 # print(c.cube)
 # print("--------------------")
-
-d = np.arange(9)
-d = d.reshape((3,3))
-# print(d)
-# print(d.T)
-# c = np.arange(54)
-# c = c.reshape((6,3,3))
