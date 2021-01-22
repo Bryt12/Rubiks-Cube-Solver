@@ -1,0 +1,6 @@
+numpy
+arcade
+matplotlib
+pandas
+tensorflow
+future
