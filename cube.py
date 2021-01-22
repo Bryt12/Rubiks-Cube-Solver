@@ -1,5 +1,7 @@
 import numpy as np
 import random
+import math
+from graphics import *
 
 class Cube():
     # The white face is always on top with the green face in front
@@ -159,9 +161,23 @@ class Cube():
         self.cube[face_order[2]][2] = self.cube[face_order[3]].T[0]
         self.cube[face_order[3]].T[0] = temp_row
 
-    def scramble(self):
-        moves = [random.randint(1, 6) for _ in range(20)]
-        direction = [random.randint(0, 1) for _ in range(20)]
+    def make_move(self, move, clockwise=True):
+        if move == 'u':
+            self.u(clockwise)
+        elif move == 'd':
+            self.d(clockwise)
+        elif move == 'r':
+            self.r(clockwise)
+        elif move == 'l':
+            self.l(clockwise)
+        elif move == 'f':
+            self.f(clockwise)
+        elif move == 'b':
+            self.b(clockwise)
+
+    def scramble(self, number_of_moves=20):
+        moves = [random.randint(1, 6) for _ in range(number_of_moves)]
+        direction = [random.randint(0, 1) for _ in range(number_of_moves)]
         for i in range(len(moves)):
             # print(c.cube)
             clockwise = direction[i] == 1
@@ -200,11 +216,63 @@ class Cube():
         for i in range(6):
             middle = self.cube[i][1][1]
             out += ((self.cube[i] == middle).sum() - 1)
-        return 48 - out
+        return out
 
+    def draw_cube(self):
+        # In pixels
+        sticker_width = 50
 
+        side_offset_left = [sticker_width*3,
+                           sticker_width*3,
+                           0,
+                           sticker_width*9,
+                           sticker_width*6,
+                           sticker_width*3]
+
+        side_offset_top = [0,
+                           sticker_width*3,
+                           sticker_width*3,
+                           sticker_width*3,
+                           sticker_width*3,
+                           sticker_width*6]
+        # Sticker order
+        # 0 1 2
+        # 3 4 5
+        # 6 7 8
+        win = GraphWin("Cube", sticker_width*12, sticker_width*9)
+        win.setBackground('black')
+        for side in range(6):
+            for sticker in range(9):
+                sticker_x = sticker%3
+                sticker_y = math.floor(sticker/3)
+
+                x = side_offset_left[side] + (sticker_width*sticker_x)
+                y = side_offset_top[side] + (sticker_width*sticker_y)
+                rect = Rectangle(Point(x,y), Point(x+sticker_width,y+sticker_width))
+
+                col = self.get_color(self.cube[side].T[sticker_x][sticker_y])
+                rect.setFill(col)
+                rect.draw(win)
+
+        win.getMouse()
+        win.close()
+
+    def get_color(self, char):
+        if char == 'w':
+            return 'white'
+        if char == 'g':
+            return 'green'
+        if char == 'o':
+            return 'orange'
+        if char == 'b':
+            return 'blue'
+        if char == 'r':
+            return 'red'
+        if char == 'y':
+            return 'yellow'
 c = Cube()
-# print(c.cube)
+c.scramble()
+c.draw_cube()
 # print("--------------------")
 # c.u()
 # c.u()
