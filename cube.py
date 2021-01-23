@@ -174,6 +174,7 @@ class Cube():
             self.b(clockwise)
 
     def scramble(self, number_of_moves=20):
+        self.solve()
         moves = [random.randint(1, 6) for _ in range(number_of_moves)]
         direction = [random.randint(0, 1) for _ in range(number_of_moves)]
         scramble = ""
@@ -218,5 +219,6 @@ class Cube():
         for i in range(6):
             middle = self.cube[i][1][1]
             out += ((self.cube[i] == middle).sum() - 1)
-        return out
+        # Subtract the 6 centers
+        return out - 6
 
