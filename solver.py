@@ -11,7 +11,6 @@ class Solver:
         self.y_train = []
         self.last_two = [None, None]
         self.model = self.make_model()
-        self.rand_count = 0
 
     def make_model(self):
         model = Sequential()
@@ -72,7 +71,6 @@ class Solver:
         three_of_same_in_row = (num == self.last_two[0] and num == self.last_two[1])
         # If either are true, generate a random move instead
         if three_of_same_in_row or is_reverse_of_last_move:
-            self.rand_count += 1
             num = random.randint(0, 11)
 
         # Update last two moves
@@ -99,15 +97,9 @@ class Solver:
         # np.save("y_data.npy", y_train)
 
     def train_model(self):
-        rand_c = self.rand_count
-
-        self.rand_count = 0
-
         if len(self.y_train) > 0:
             self.model = self.make_model()
 
             self.model.fit(np.asarray(self.X_train), np.asarray(self.y_train), epochs=30, verbose=0)
 
         self.save_data(self.X_train, self.y_train)
-
-        return rand_c
