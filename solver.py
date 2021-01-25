@@ -14,11 +14,11 @@ class Solver:
 
     def make_model(self):
         model = Sequential()
-        model.add(Dense(256, input_dim=324, activation='relu'))
+        model.add(Dense(256, input_dim=162, activation='relu'))
         model.add(Dropout(0.4))
-        model.add(Dense(512, activation='relu'))
+        model.add(Dense(128, activation='relu'))
         model.add(Dropout(0.4))
-        model.add(Dense(256, activation='relu'))
+        model.add(Dense(128, activation='relu'))
         model.add(Dense(12, activation='softmax'))
 
         model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=["accuracy"])
@@ -26,11 +26,29 @@ class Solver:
         return model
 
     def preprocess_cube(self, c):
-        c = c.reshape((1,54))
-        df = pd.DataFrame(c)
-        df = df.apply(lambda x: x.astype('category').cat.set_categories(['w', 'g', 'o', 'b', 'r', 'y']))
-        df = pd.get_dummies(df)
-        return df
+        c = c.flatten()
+        out = np.empty((c.shape[0],3))
+
+        for i in range(c.shape[0]):
+            out[i] = self.letter_to_bin(c[i])
+        # df = pd.DataFrame(c)
+        # df = df.apply(lambda x: x.astype('category').cat.set_categories(['w', 'g', 'o', 'b', 'r', 'y']))
+        # df = pd.get_dummies(df)
+        return np.reshape(out, (-1, 162))
+
+    def letter_to_bin(self, let):
+        if let == 'w':
+            return np.array([0, 0, 0])
+        if let == 'g':
+            return np.array([0, 0, 1])
+        if let == 'o':
+            return np.array([0, 1, 0])
+        if let == 'b':
+            return np.array([0, 1, 1])
+        if let == 'r':
+            return np.array([1, 0, 0])
+        if let == 'y':
+            return np.array([1, 0, 1])
 
     def number_to_move(self, num):
         if num == 0 or num == 1:
@@ -84,8 +102,19 @@ class Solver:
 
         # If move increased score, add it to the training data
         if current_score > init_score:
-            self.X_train.append(self.preprocess_cube(init_state).iloc[0])
+            self.X_train.append(df.flatten())
             self.y_train.append(to_categorical(num, num_classes=12))
+
+        # Save this move but backwards
+        if current_score < init_score:
+            inverse = num
+            if clockwise:
+                inverse += 1
+            else:
+                inverse -= 1
+
+            self.X_train.append(df.flatten())
+            self.y_train.append(to_categorical(inverse, num_classes=12))
 
         # Return if a random move was picked
         return three_of_same_in_row or is_reverse_of_last_move

@@ -11,8 +11,8 @@ HEIGHT = sticker_width * 9
 
 NUMBER_FOR_SCRAMBLE = 30
 
-NUMBER_OF_CUBES_TO_TRAIN = 2
-NUMBER_OF_TURNS_PER_CUBE = 10
+NUMBER_OF_CUBES_TO_TRAIN = 100
+NUMBER_OF_TURNS_PER_CUBE = 30
 NUMBER_OF_TRAINS = 20
 
 
@@ -173,6 +173,7 @@ class CubeDisplay(arcade.Window):
         if self.collections % NUMBER_OF_TURNS_PER_CUBE == 0:
             # Solve cube first to allow the scramble to get more and more
             # as time goes on
+            cube.solve()
             cube.scramble(int(NUMBER_FOR_SCRAMBLE * (self.cubes_scrambled / NUMBER_OF_CUBES_TO_TRAIN)))
             self.cubes_scrambled += 1
 

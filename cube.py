@@ -174,7 +174,7 @@ class Cube():
             self.b(clockwise)
 
     def scramble(self, number_of_moves=20):
-        self.solve()
+        # self.solve()
         moves = [random.randint(1, 6) for _ in range(number_of_moves)]
         direction = [random.randint(0, 1) for _ in range(number_of_moves)]
         scramble = ""
