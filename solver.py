@@ -1,3 +1,5 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.utils import to_categorical
@@ -6,11 +8,19 @@ import random
 import numpy as np
 
 class Solver:
-    def __init__(self):
+    def __init__(self, delta_epsilon = 0.9, gamma = 0.7):
         self.X_train = []
         self.y_train = []
+        self.data_start = 0
+
         self.last_two = [None, None]
         self.model = self.make_model()
+        self.epsilon = 1
+        self.delta_epsilon = delta_epsilon
+        self.gamma = gamma
+
+    def begin_training_cycle(self):
+        self.data_start = len(self.y_train)
 
     def make_model(self):
         model = Sequential()
@@ -19,9 +29,9 @@ class Solver:
         model.add(Dense(128, activation='relu'))
         model.add(Dropout(0.4))
         model.add(Dense(128, activation='relu'))
-        model.add(Dense(12, activation='softmax'))
+        model.add(Dense(12))
 
-        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=["accuracy"])
+        model.compile(optimizer='adam', loss='mean_squared_error', metrics=["accuracy"])
 
         return model
 
@@ -64,7 +74,7 @@ class Solver:
         if num == 10 or num == 11:
             return 'b', num%2 == 0
 
-    def generate_move(self, cube):
+    def generate_move(self, cube, training = False):
         # Capture state before move
         init_state = cube.cube.copy()
         init_score = cube.score()
@@ -87,8 +97,13 @@ class Solver:
         is_reverse_of_last_move = (last_move == this_move and this_clockwise != last_clockwise)
         # Check if move is the same as the last two
         three_of_same_in_row = (num == self.last_two[0] and num == self.last_two[1])
+
+        if not training:
+            explore = False
+        else:
+            explore = random.random() < self.epsilon
         # If either are true, generate a random move instead
-        if three_of_same_in_row or is_reverse_of_last_move:
+        if three_of_same_in_row or is_reverse_of_last_move or explore:
             num = random.randint(0, 11)
 
         # Update last two moves
@@ -98,26 +113,48 @@ class Solver:
         # Make calculated move and get score of cube afterward
         move, clockwise = self.number_to_move(num)
         cube.make_move(move, clockwise)
-        current_score = cube.score()
 
-        # If move increased score, add it to the training data
-        if current_score > init_score:
-            self.X_train.append(df.flatten())
-            self.y_train.append(to_categorical(num, num_classes=12))
+        if training:
+            current_score = cube.score()
+
+            # Add move to training set
+            self.X_train.insert(0, df.flatten())
+            self.y_train.insert(0, to_categorical(num, num_classes=12) * current_score)
+
+            # Update q-value of each y
+            self.update_q_values(current_score)
 
         # Save this move but backwards
-        if current_score < init_score:
-            inverse = num
-            if clockwise:
-                inverse += 1
-            else:
-                inverse -= 1
-
-            self.X_train.append(df.flatten())
-            self.y_train.append(to_categorical(inverse, num_classes=12))
+        # if current_score < init_score:
+        #     inverse = num
+        #     if clockwise:
+        #         inverse += 1
+        #     else:
+        #         inverse -= 1
+        #
+        #     self.X_train.append(df.flatten())
+        #     self.y_train.append(to_categorical(inverse, num_classes=12))
 
         # Return if a random move was picked
-        return three_of_same_in_row or is_reverse_of_last_move
+        return three_of_same_in_row or is_reverse_of_last_move or explore
+
+    def update_q_values(self, reward):
+        max_dep = 20
+        if len(self.y_train) == self.data_start:
+            return
+
+        # Skip newest value so start at 1
+        for i in range(1, len(self.y_train) - self.data_start):
+            y_data = self.y_train[i]
+
+            non_zero_index = [i for i, val in enumerate(y_data) if val != 0]
+            non_zero_index = non_zero_index[0]
+            current_value = y_data[non_zero_index]
+            new_value = reward + current_value * self.gamma
+            # new_value = (1-self.learning_rate) * current_value + self.learning_rate * (current_value + ((self.gamma**i)*current_value))
+
+
+            self.y_train[i][non_zero_index] = new_value
 
     def save_data(self, X_train, y_train):
         print("saving")
@@ -126,9 +163,9 @@ class Solver:
         # np.save("y_data.npy", y_train)
 
     def train_model(self):
-        if len(self.y_train) > 0:
-            self.model = self.make_model()
+        self.epsilon *= self.delta_epsilon
+        self.model = self.make_model()
 
-            self.model.fit(np.asarray(self.X_train), np.asarray(self.y_train), epochs=30, verbose=0)
+        self.model.fit(np.asarray(self.X_train), np.asarray(self.y_train), epochs=30, verbose=0)
 
-        self.save_data(self.X_train, self.y_train)
+        # self.save_data(self.X_train, self.y_train)

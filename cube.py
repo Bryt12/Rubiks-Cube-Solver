@@ -215,10 +215,15 @@ class Cube():
         self.u()
 
     def score(self):
-        out = 0
+        score = 0
         for i in range(6):
             middle = self.cube[i][1][1]
-            out += ((self.cube[i] == middle).sum() - 1)
-        # Subtract the 6 centers
-        return out - 6
+            score += ((self.cube[i] == middle).sum() - 1)
+        # This is so that the y vector * current score doesn't equal all ones
+        if score == 0:
+            score = -1
+        # If the cube is solved
+        if score == 48:
+            score = 99999
+        return score
 

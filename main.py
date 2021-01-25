@@ -15,7 +15,6 @@ NUMBER_OF_CUBES_TO_TRAIN = 100
 NUMBER_OF_TURNS_PER_CUBE = 30
 NUMBER_OF_TRAINS = 20
 
-
 class CubeDisplay(arcade.Window):
     scrambling = False
     scrambles = 0
@@ -29,7 +28,8 @@ class CubeDisplay(arcade.Window):
 
     max_scores = []
     rand_counts = []
-
+    current_solve_max = 0
+    max_state = None
     def __init__(self):
         """ Initializer """
         # Call the parent class initializer
@@ -57,7 +57,7 @@ class CubeDisplay(arcade.Window):
 
         # Let AI solve indefinity
         if self.solving:
-            solver.generate_move(cube)
+            solver.generate_move(cube, training = False)
 
         # Draw cube
         side_offset_left = [sticker_width * 3,
@@ -92,6 +92,31 @@ class CubeDisplay(arcade.Window):
                 arcade.draw_rectangle_filled(x_center, y_center, sticker_width, sticker_width, col)
                 arcade.draw_rectangle_outline(x_center, y_center, sticker_width, sticker_width, arcade.color.BLACK)
 
+        if self.collecting_data:
+            percent_done_with_train = (self.collections % (NUMBER_OF_CUBES_TO_TRAIN * NUMBER_OF_TURNS_PER_CUBE))/ (NUMBER_OF_CUBES_TO_TRAIN * NUMBER_OF_TURNS_PER_CUBE) * 100
+            score = cube.score()
+            if score == 99999:
+                percent_done_with_cube = 1
+            elif score == -1:
+                percent_done_with_cube = 0
+            else:
+                percent_done_with_cube = (cube.score()/48) * 100
+
+            if percent_done_with_cube > self.current_solve_max:
+                self.current_solve_max = percent_done_with_cube
+                self.max_state = cube.cube.copy()
+
+            if percent_done_with_train > 99.9:
+                percent_done_with_train = "Training Neural Network"
+            else:
+                percent_done_with_train = str(round(percent_done_with_train, 2)) + "%"
+
+            arcade.draw_text("Train #: " + str(self.trains + 1) + "/" + str(NUMBER_OF_TRAINS), sticker_width * 6, sticker_width * 3 - 20, arcade.color.WHITE, 12)
+            arcade.draw_text("Current train: " + percent_done_with_train, sticker_width * 6, sticker_width * 3 - 40, arcade.color.WHITE, 12)
+            arcade.draw_text("Max Cube solved: " + str(round(self.current_solve_max, 2)) + "%", sticker_width * 6, sticker_width * 3 - 60, arcade.color.WHITE, 12)
+            arcade.draw_text("Random Moves: " + str(round(solver.epsilon * 100, 2)) + "%", sticker_width * 6, sticker_width * 3 - 80, arcade.color.WHITE, 12)
+
+
     def on_key_release(self, symbol: int, modifiers: int):
         clockwise = not modifiers == arcade.key.MOD_SHIFT
         if symbol == arcade.key.R:
@@ -112,6 +137,7 @@ class CubeDisplay(arcade.Window):
             else:
                 cube.solve()
         if symbol == arcade.key.T:
+            solver.begin_training_cycle()
             self.collecting_data = True
         if symbol == arcade.key.A:
             self.solving = not self.solving
@@ -130,27 +156,6 @@ class CubeDisplay(arcade.Window):
         if char == 'y':
             return arcade.color.PASTEL_YELLOW
 
-    def test_model(self):
-        # Test model
-        cube.scramble(NUMBER_FOR_SCRAMBLE)
-        max_score = 0
-        random_moves = 0
-        for _ in range(20):
-            random_move = solver.generate_move(cube)
-            if cube.score() > max_score:
-                max_score = cube.score()
-            if random_move:
-                random_moves += 1
-
-        # Print results
-        print("Generation Stats")
-        print(str(int(self.collections / (NUMBER_OF_CUBES_TO_TRAIN * NUMBER_OF_TURNS_PER_CUBE))) + "/" + str(
-            NUMBER_OF_TRAINS))
-        print("Max completion:" + str((max_score / 48) * 100) + "%")
-        print("Percent Random:" + str((random_moves / NUMBER_OF_TURNS_PER_CUBE) * 100) + "%")
-
-        return max_score, random_moves
-
     def finish_training(self):
         # Reset variables
         self.trains = 0
@@ -165,6 +170,8 @@ class CubeDisplay(arcade.Window):
         axs[1].set_ylabel('Random Count')
         plt.show()
 
+        solver.model.save("models")
+
         # Solve cube
         cube.solve()
 
@@ -174,10 +181,13 @@ class CubeDisplay(arcade.Window):
             # Solve cube first to allow the scramble to get more and more
             # as time goes on
             cube.solve()
-            cube.scramble(int(NUMBER_FOR_SCRAMBLE * (self.cubes_scrambled / NUMBER_OF_CUBES_TO_TRAIN)))
+            # cube.scramble(int(NUMBER_FOR_SCRAMBLE * (self.cubes_scrambled / NUMBER_OF_CUBES_TO_TRAIN)))
+            cube.scramble(NUMBER_FOR_SCRAMBLE)
+            solver.begin_training_cycle()
+
             self.cubes_scrambled += 1
 
-        solver.generate_move(cube)
+        solver.generate_move(cube, training=True)
         self.collections += 1
 
         # If at end of training cycle
@@ -185,12 +195,14 @@ class CubeDisplay(arcade.Window):
             self.trains += 1
             self.cubes_scrambled = 0
 
+            cube.cube = self.max_state.copy()
+
             solver.train_model()
 
-            max_score, random_moves = self.test_model()
-
-            self.max_scores.append(max_score / 48)
-            self.rand_counts.append(random_moves)
+            self.max_scores.append(self.current_solve_max)
+            self.rand_counts.append(solver.epsilon)
+            self.current_solve_max = 0
+            cube.scramble()
 
 def main():
     window = CubeDisplay()
