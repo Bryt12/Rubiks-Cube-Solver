@@ -48,17 +48,19 @@ class Solver:
 
     def letter_to_bin(self, let):
         if let == 'w':
-            return np.array([0, 0, 0])
-        if let == 'g':
-            return np.array([0, 0, 1])
-        if let == 'o':
-            return np.array([0, 1, 0])
-        if let == 'b':
-            return np.array([0, 1, 1])
-        if let == 'r':
             return np.array([1, 0, 0])
         if let == 'y':
-            return np.array([1, 0, 1])
+            return np.array([-1, 0, 0])
+
+        if let == 'g':
+            return np.array([0, 1, 0])
+        if let == 'b':
+            return np.array([0, -1, 0])
+
+        if let == 'o':
+            return np.array([0, 0, 1])
+        if let == 'r':
+            return np.array([0, 0, -1])
 
     def number_to_move(self, num):
         if num == 0 or num == 1:
@@ -75,10 +77,6 @@ class Solver:
             return 'b', num%2 == 0
 
     def generate_move(self, cube, training = False):
-        # Capture state before move
-        init_state = cube.cube.copy()
-        init_score = cube.score()
-
         # Preprocess cube and ask model for next move
         df = self.preprocess_cube(cube.cube)
         num = np.argmax(self.model.predict(df), axis=-1)[0]
@@ -124,22 +122,10 @@ class Solver:
             # Update q-value of each y
             self.update_q_values(current_score)
 
-        # Save this move but backwards
-        # if current_score < init_score:
-        #     inverse = num
-        #     if clockwise:
-        #         inverse += 1
-        #     else:
-        #         inverse -= 1
-        #
-        #     self.X_train.append(df.flatten())
-        #     self.y_train.append(to_categorical(inverse, num_classes=12))
-
         # Return if a random move was picked
         return three_of_same_in_row or is_reverse_of_last_move or explore
 
     def update_q_values(self, reward):
-        max_dep = 20
         if len(self.y_train) == self.data_start:
             return
 
